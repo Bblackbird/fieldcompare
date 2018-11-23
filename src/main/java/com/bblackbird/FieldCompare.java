@@ -59,10 +59,22 @@ public class FieldCompare {
         return comparatorsMap.get(type);
     }
 
+    public static Class<?> getCollectionType(Field field, Collection<?> collection) {
+        if (field != null)
+            return getCollectionType(field);
+        return getCollectionType(collection);
+    }
+
     public static Class<?> getCollectionType(Field field) {
         ParameterizedType paramType = (ParameterizedType) field.getGenericType();
         Class<?> type = (Class<?>) paramType.getActualTypeArguments()[0];
         return type;
+    }
+
+    public static Class<?> getCollectionType(Collection<?> collection) {
+        if (collection.isEmpty())
+            return null;
+        return collection.iterator().next().getClass();
     }
 
     public <T> boolean hasComparator(Class<T> type) {
@@ -70,21 +82,21 @@ public class FieldCompare {
     }
 
     public <T> Collection<T> sortCollectionIfRequired(Collection<T> collection, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-        Class<?> type = getCollectionType(collectionField);
+        Class<?> type = getCollectionType(collectionField, collection);
         if (hasComparator(type))
             return orderCollection(collection, (Class<T>) type, cloneFunc, defaultComparator);
         return collection;
     }
 
     public <T> List<T> sortListIfRequired(List<T> collection, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-        Class<?> type = getCollectionType(collectionField);
+        Class<?> type = getCollectionType(collectionField, collection);
         if (hasComparator(type))
             return orderList(collection, (Class<T>) type, cloneFunc, defaultComparator);
         return collection;
     }
 
     public <T> Collection<T> sortCollection(Collection<T> collection, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-        Class<?> type = getCollectionType(collectionField);
+        Class<?> type = getCollectionType(collectionField, collection);
         return orderCollection(collection, (Class<T>) type, cloneFunc, defaultComparator);
     }
 
@@ -437,14 +449,35 @@ public class FieldCompare {
         return diffs;
     }
 
+    public String item;
+
+    private Field getItemField() {
+        try {
+            return FieldCompare.class.getField("item");
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private Field getValidField(Field f) {
+
+        if (f != null)
+            return f;
+
+        return getItemField();
+    }
+
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, List<?> left, List<?> right, List<Diff> diffs) {
 
         left = sortListIfRequired(left, f, l -> new ArrayList(l), () -> null);
         right = sortListIfRequired(right, f, l -> new ArrayList(l), () -> null);
 
-        if (f != null)
-            pf.addLast(f);
+        Field validField = getValidField(f);
+        if (validField != null)
+            pf.addLast(validField);
+
         for (int i = 0; i < left.size(); i++) {
             Object vLeft = left.get(i);
             prefix.addLast(String.valueOf(i));
@@ -456,7 +489,7 @@ public class FieldCompare {
             }
             prefix.removeLast();
         }
-        if (f != null)
+        if (validField != null)
             pf.removeLast();
         return diffs;
     }
@@ -464,24 +497,27 @@ public class FieldCompare {
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, Set<?> left, Set<?> right, List<Diff> diffs) {
 
-        pf.addLast(f);
+        Field validField = getValidField(f);
+        if (validField != null)
+            pf.addLast(validField);
+
         List<Object> localDiffs = new ArrayList<>();
-        for (Object item : left) {
-            if (!right.contains(item)) {
-                localDiffs.add(item);
+        for (Object elem : left) {
+            if (!right.contains(elem)) {
+                localDiffs.add(elem);
             }
         }
 
         List<?> sortedSet = sortSet(left, f, s -> new ArrayList(s), () -> null);
 
-        for (Object item : localDiffs) {
-            int counter = sortedSet.indexOf(item);
+        for (Object elem : localDiffs) {
+            int counter = sortedSet.indexOf(elem);
             prefix.addLast(String.valueOf(counter));
-            diffs.add(new Diff(getFullName(pf, prefix), item.getClass(), item, "MISSING"));
+            diffs.add(new Diff(getFullName(pf, prefix), elem.getClass(), elem, "MISSING"));
             prefix.removeLast();
         }
-        pf.removeLast();
-
+        if (validField != null)
+            pf.removeLast();
         return diffs;
     }
 
@@ -491,7 +527,10 @@ public class FieldCompare {
         left = sortCollectionIfRequired(left, f, l -> new ArrayList(l), () -> null);
         right = sortCollectionIfRequired(right, f, l -> new ArrayList(l), () -> null);
 
-        pf.addLast(f);
+        Field validField = getValidField(f);
+        if (validField != null)
+            pf.addLast(validField);
+
         Iterator<?> leftIter = left.iterator();
         Iterator<?> rightIter = right.iterator();
         for (int i = 0; i < left.size(); i++) {
@@ -505,7 +544,8 @@ public class FieldCompare {
             }
             prefix.removeLast();
         }
-        pf.removeLast();
+        if (validField != null)
+            pf.removeLast();
         return diffs;
     }
 

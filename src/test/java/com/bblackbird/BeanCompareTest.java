@@ -1,12 +1,16 @@
 package com.bblackbird;
 
+
 import com.bblackbird.FieldCompare.ContextFilter;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.junit.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
@@ -22,12 +26,9 @@ import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-//import org.apache.log4j.Logger;
-
-
 public class BeanCompareTest {
 
-    //private static Logger LOGGER = Logger.getLogger (BeanCompareTest.class);
+    private static Logger logger = LoggerFactory.getLogger(BeanCompareTest.class);
 
     public enum PositionType {
         BLACK, RED;
@@ -1623,6 +1624,7 @@ public class BeanCompareTest {
         assertThat(diffs, empty());
     }
 
+
     @Test
     public void testOrderedStringArrayComparison() {
 
@@ -2008,6 +2010,77 @@ public class BeanCompareTest {
         assertThat(diffs, not(empty()));
 
         beanCompare.addComparator(Character.class, Comparator.naturalOrder());
+
+        diffs = beanCompare.diffs(left, right, f -> true);
+        assertThat(diffs, empty());
+    }
+
+    // Test naked collections
+
+
+    public static <T> List<T> toList(T[] array) {
+        return Lists.newArrayList(array);
+    }
+
+    public static <T> List<T> clone(List<T> list) {
+        return Lists.newArrayList(list);
+    }
+
+    @Test
+    public void testOrderedTopLevelStringListComparison() {
+
+        String[] tmpLeft = getObject(String[].class);
+        List<String> left = toList(tmpLeft);
+
+        List<String> right = clone(left);
+
+        Collections.shuffle(right);
+
+        List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
+        assertThat(diffs, not(empty()));
+
+        beanCompare.addComparator(String.class, (l, r) -> l.compareTo(r));
+
+        diffs = beanCompare.diffs(left, right, f -> true);
+        assertThat(diffs, empty());
+    }
+
+    @Test
+    public void testOrderedTopLevelIntegerListComparison() {
+
+        Integer[] tmpLeft = getObject(Integer[].class);
+        List<Integer> left = toList(tmpLeft);
+
+        List<Integer> right = clone(left);
+
+        Collections.shuffle(right);
+        logger.info(left.toString());
+        logger.info(right.toString());
+
+        List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
+        logger.info(diffs.toString());
+        assertThat(diffs, not(empty()));
+
+        beanCompare.addComparator(Integer.class, Comparator.naturalOrder());
+
+        diffs = beanCompare.diffs(left, right, f -> true);
+        assertThat(diffs, empty());
+    }
+
+    @Test
+    public void testOrderedTopLevelPojoListComparison() {
+
+        Position[] tmpLeft = getObject(Position[].class);
+        List<Position> left = toList(tmpLeft);
+
+        List<Position> right = clone(left);
+
+        Collections.shuffle(right);
+
+        List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
+        assertThat(diffs, not(empty()));
+
+        beanCompare.addComparator(Position.class, Comparator.comparing(Position::getBook));
 
         diffs = beanCompare.diffs(left, right, f -> true);
         assertThat(diffs, empty());
