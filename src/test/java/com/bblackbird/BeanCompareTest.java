@@ -8,7 +8,8 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.junit.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -23,8 +24,10 @@ import static com.bblackbird.FieldCompare.allFieldContextFilter;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+//import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+//import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 public class BeanCompareTest {
 
@@ -273,20 +276,20 @@ public class BeanCompareTest {
     private static BeanCompare beanCompare;
 
 
-    @BeforeClass
+    @BeforeAll
     public static void setUpBeforeClass() {
         beanCompare = new BeanCompare();
     }
 
-    @AfterClass
+    @AfterAll
     public static void teardownAfterClass() {
     }
 
-    @Before
+    @BeforeEach
     public void setup() {
     }
 
-    @After
+    @AfterEach
     public void teardown() {
         beanCompare.clearComparators();
     }

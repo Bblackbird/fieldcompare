@@ -19,7 +19,7 @@ public class FieldCompare {
     //
     private static final Field[] NO_FIELDS = {};
     /**
-     * Cache for {blink classigetDeclaredfields()), alloving for fast iteration.
+     * Cache for {blink classigetDeclaredfields()), allowing for fast iteration.
      */
     private static final Map<Class<?>, Field[]> declaredFieldsCache = new ConcurrentHashMap<>(256);
 
