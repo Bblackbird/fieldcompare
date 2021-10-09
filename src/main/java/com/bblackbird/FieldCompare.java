@@ -43,224 +43,66 @@ public class FieldCompare {
     public interface CompareFields<T> extends Function<Deque<Field>, Function<Deque<String>, Function<Predicate<Field>, Function<CheckDiffNulls, Function<ContextFilter, Function<T, Function<T, Function<Field, List<Diff>>>>>>>>> {
     }
 
-    // Ordering registry
-    //
-    private Map<Class<?>, Comparator> comparatorsMap = new HashMap<>();
-
-    public void clearComparators() {
-        comparatorsMap.clear();
-    }
-
-    public <T> void addComparator(Class<T> type, Comparator<T> comparator) {
-        comparatorsMap.put(type, comparator);
-    }
-
-    public <T> Comparator<T> getComparator(Class<T> type) {
-        return comparatorsMap.get(type);
-    }
-
-    public static Class<?> getCollectionType(Field field, Collection<?> collection) {
-        if (field != null)
-            return getCollectionType(field);
-        return getCollectionType(collection);
-    }
-
-    public static Class<?> getCollectionType(Field field) {
-        ParameterizedType paramType = (ParameterizedType) field.getGenericType();
-        Class<?> type = (Class<?>) paramType.getActualTypeArguments()[0];
-        return type;
-    }
-
-    public static Class<?> getCollectionType(Collection<?> collection) {
-        if (collection.isEmpty())
-            return null;
-        return collection.iterator().next().getClass();
-    }
-
-    public <T> boolean hasComparator(Class<T> type) {
-        return comparatorsMap.containsKey(type);
-    }
-
-    public <T> Collection<T> sortCollectionIfRequired(Collection<T> collection, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-        Class<?> type = getCollectionType(collectionField, collection);
-        if (hasComparator(type))
-            return orderCollection(collection, (Class<T>) type, cloneFunc, defaultComparator);
-        return collection;
-    }
-
-    public <T> List<T> sortListIfRequired(List<T> collection, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-        Class<?> type = getCollectionType(collectionField, collection);
-        if (hasComparator(type))
-            return orderList(collection, (Class<T>) type, cloneFunc, defaultComparator);
-        return collection;
-    }
-
-    public <T> Collection<T> sortCollection(Collection<T> collection, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-        Class<?> type = getCollectionType(collectionField, collection);
-        return orderCollection(collection, (Class<T>) type, cloneFunc, defaultComparator);
-    }
-
-    public <T> List<T> sortList(List<T> list, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-        return (List<T>) sortCollection(list, collectionField, cloneFunc, defaultComparator);
-    }
-
-    public <T> List<T> sortSet(Set<T> set, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-        return (List<T>) sortCollection(set, collectionField, cloneFunc, defaultComparator);
-    }
-
-    protected <T> Collection<T> orderCollection(Collection<T> collection, Class<T> type, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-
-        Comparator<T> comparator = defaultComparator.get();
-
-        if (hasComparator(type)) {
-            comparator = (Comparator<T>) getComparator(type);
-        }
-
-        List<T> clone = cloneFunc.apply(collection);
-
-        clone.sort(comparator);
-
-        return clone;
-    }
-
-    protected <T> List<T> orderList(List<T> list, Class<T> type, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-        return (List<T>) orderCollection(list, type, cloneFunc, defaultComparator);
-    }
-
-    protected <T> List<T> orderSet(Set<T> set, Class<T> type, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-        return (List<T>) orderCollection(set, type, cloneFunc, defaultComparator);
-    }
-
-    public static <T> Class<T> getArrayType(T[] array) {
-        return (Class<T>) array.getClass().getComponentType();
-    }
-
-    public static <T> Class<T> getArrayType(Field field) {
-        return (Class<T>) field.getType().getComponentType();
-    }
-
-    public static <T> Class<T> getArrayType(T[] array, Field field) {
-        Class<T> type = null;
-        if (field == null) {
-            type = getArrayType(array);
-        } else {
-            type = getArrayType(field);
-        }
-        return type;
-    }
-
-    public <T> T[] sortArray(T[] array, Field field, Function<T[], T[]> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-        Class<?> type = getArrayType(array, field);
-        if (hasComparator(type))
-            return orderArray(array, (Class<T>) type, cloneFunc, defaultComparator);
-        return array;
-    }
-
-    protected <T> T[] orderArray(T[] array, Class<T> type, Function<T[], T[]> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
-
-        Comparator<T> comparator = defaultComparator.get();
-
-        if (hasComparator(type)) {
-            comparator = (Comparator<T>) getComparator(type);
-        }
-
-        T[] cloneArray = cloneFunc.apply(array);
-
-        Arrays.sort(cloneArray, comparator);
-
-        return cloneArray;
-
-    }
-
-    public short[] sortArray(short[] array, Field field, Function<short[], short[]> cloneFunc, Supplier<Comparator<Short>> defaultComparator) {
-        if (hasComparator(short.class) || hasComparator(Short.class)) {
-            short[] clone = cloneFunc.apply(array);
-            List<Short> arrayList = Shorts.asList(clone);
-            orderList(arrayList, Short.class, l -> (List<Short>) l, defaultComparator);
-            return clone;
-
-        }
-        return array;
-    }
-
-    public int[] sortArray(int[] array, Field field, Function<int[], int[]> cloneFunc, Supplier<Comparator<Integer>> defaultComparator) {
-        if (hasComparator(int.class) || hasComparator(Integer.class)) {
-            int[] clone = cloneFunc.apply(array);
-            List<Integer> arrayList = Ints.asList(clone);
-            orderList(arrayList, Integer.class, l -> (List<Integer>) l, defaultComparator);
-            return clone;
-
-        }
-        return array;
-    }
-
-    public long[] sortArray(long[] array, Field field, Function<long[], long[]> cloneFunc, Supplier<Comparator<Long>> defaultComparator) {
-        if (hasComparator(long.class) || hasComparator(Long.class)) {
-            long[] clone = cloneFunc.apply(array);
-            List<Long> arrayList = Longs.asList(clone);
-            orderList(arrayList, Long.class, l -> (List<Long>) l, defaultComparator);
-            return clone;
-
-        }
-        return array;
-    }
-
-    public float[] sortArray(float[] array, Field field, Function<float[], float[]> cloneFunc, Supplier<Comparator<Float>> defaultComparator) {
-        if (hasComparator(float.class) || hasComparator(Long.class)) {
-            float[] clone = cloneFunc.apply(array);
-            List<Float> arrayList = Floats.asList(clone);
-            orderList(arrayList, Float.class, l -> (List<Float>) l, defaultComparator);
-            return clone;
-
-        }
-        return array;
-    }
-
-    public double[] sortArray(double[] array, Field field, Function<double[], double[]> cloneFunc, Supplier<Comparator<Double>> defaultComparator) {
-        if (hasComparator(double.class) || hasComparator(Double.class)) {
-            double[] clone = cloneFunc.apply(array);
-            List<Double> arrayList = Doubles.asList(clone);
-            orderList(arrayList, Double.class, l -> (List<Double>) l, defaultComparator);
-            return clone;
-
-        }
-        return array;
-    }
-
-    public boolean[] sortArray(boolean[] array, Field field, Function<boolean[], boolean[]> cloneFunc, Supplier<Comparator<Boolean>> defaultComparator) {
-        if (hasComparator(boolean.class) || hasComparator(Boolean.class)) {
-            boolean[] clone = cloneFunc.apply(array);
-            List<Boolean> arrayList = Booleans.asList(clone);
-            orderList(arrayList, Boolean.class, l -> (List<Boolean>) l, defaultComparator);
-            return clone;
-
-        }
-        return array;
-    }
-
-    public byte[] sortArray(byte[] array, Field field, Function<byte[], byte[]> cloneFunc, Supplier<Comparator<Byte>> defaultComparator) {
-        if (hasComparator(byte.class) || hasComparator(Byte.class)) {
-            byte[] clone = cloneFunc.apply(array);
-            List<Byte> arrayList = Bytes.asList(clone);
-            orderList(arrayList, Byte.class, l -> (List<Byte>) l, defaultComparator);
-            return clone;
-
-        }
-        return array;
-    }
-
-    public char[] sortArray(char[] array, Field field, Function<char[], char[]> cloneFunc, Supplier<Comparator<Character>> defaultComparator) {
-        if (hasComparator(char.class) || hasComparator(Character.class)) {
-            char[] clone = cloneFunc.apply(array);
-            List<Character> arrayList = Chars.asList(clone);
-            orderList(arrayList, Character.class, l -> (List<Character>) l, defaultComparator);
-            return clone;
-
-        }
-        return array;
-    }
-
     // Main API
+
+    public <T> List<Diff> diffs(T left, T right) {
+        return diffs(left, right, checkDiffNulls(), allFieldContextFilter, isTransientOrStatic.negate());
+    }
+
+    public <T> List<Diff> diffs(T left, T right, Predicate<Field> fieldFilter) {
+        return diffs(left, right, checkDiffNulls(), allFieldContextFilter, fieldFilter);
+    }
+
+    public <T> List<Diff> diffsNoTransientOrStatic(T left, T right, Predicate<Field> filterFields) {
+        return diffs(left, right, checkDiffNulls(), allFieldContextFilter, filterFields.and(isTransientOrStaticOrFinal.negate()));
+    }
+
+    public <T> List<Diff> diffsWithContextFilter(T left, T right, ContextFilter contextFilter) {
+        return diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), contextFilter, isTransientOrStatic.negate());
+    }
+
+    public <T> List<Diff> diffs(T left, T right, ContextFilter contextFilter, Predicate<Field> fieldFilter) {
+        return diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), contextFilter, fieldFilter);
+    }
+
+    public <T> List<Diff> diffs(T left, T right, CheckDiffNulls checkNulls, ContextFilter contextFilter, Predicate<Field> fieldFilter) {
+        return diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkNulls, contextFilter, fieldFilter);
+    }
+
+    public <T> List<Diff> fullDiffs(T left, T right) {
+        List<Diff> leftDiffs = diffs(left, right);
+        List<Diff> rightDiffs = diffs(right, left);
+        leftDiffs.addAll(rightDiffs);
+        return leftDiffs;
+    }
+
+    public <T> List<Diff> fullDiffs(T left, T right, Predicate<Field> fieldFilter) {
+        List<Diff> diffs = new ArrayList<Diff>();
+        diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), allFieldContextFilter, fieldFilter, diffs);
+        diffs(new ArrayDeque<>(), new ArrayDeque<>(), right, left, checkDiffNulls(), allFieldContextFilter, fieldFilter, diffs);
+        return diffs;
+    }
+
+    public <T> List<Diff> fullDiffsWithContextFilter(T left, T right, ContextFilter contextFilter) {
+        List<Diff> diffs = new ArrayList<Diff>();
+        diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), contextFilter, isTransientOrStatic.negate(), diffs);
+        diffs(new ArrayDeque<>(), new ArrayDeque<>(), right, left, checkDiffNulls(), contextFilter, isTransientOrStatic.negate(), diffs);
+        return diffs;
+    }
+
+    public <T> List<Diff> fullDiffs(T left, T right, ContextFilter contextFilter, Predicate<Field> fieldFilter) {
+        List<Diff> diffs = new ArrayList<Diff>();
+        diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), contextFilter, fieldFilter, diffs);
+        diffs(new ArrayDeque<>(), new ArrayDeque<>(), right, left, checkDiffNulls(), contextFilter, fieldFilter, diffs);
+        return diffs;
+    }
+
+    public <T> List<Diff> fullDiffs(T left, T right, CheckDiffNulls checkNulls, ContextFilter contextFilter, Predicate<Field> fieldFilter) {
+        List<Diff> diffs = new ArrayList<Diff>();
+        diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkNulls, contextFilter, fieldFilter, diffs);
+        diffs(new ArrayDeque<>(), new ArrayDeque<>(), right, left, checkNulls, contextFilter, fieldFilter, diffs);
+        return diffs;
+    }
 
     /**
      * Compare tvo same objects field by field
@@ -271,7 +113,6 @@ public class FieldCompare {
      * Complex objects - user defined
      * Simple objects - jdk ones
      */
-
     public <T> List<Diff> diffs(Deque<Field> parentFields, Deque<String> prefix, T left, T right, CheckDiffNulls checkNulls,
                                 ContextFilter contextFilter, Predicate<Field> fieldFilter) {
 
@@ -315,65 +156,6 @@ public class FieldCompare {
                         .apply(getFieldValueWithType(f, left)).apply(getFieldValueWithType(f, right)).apply(f))
                 .flatMap(List::stream)
                 .collect(Collectors.toList());
-    }
-
-    public <T> List<Diff> diffs(T left, T right, CheckDiffNulls checkNulls, ContextFilter contextFilter, Predicate<Field> fieldFilter) {
-        return diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkNulls, contextFilter, fieldFilter);
-    }
-
-    public <T> List<Diff> diffs(T left, T right, ContextFilter contextFilter, Predicate<Field> fieldFilter) {
-        return diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), contextFilter, fieldFilter);
-    }
-
-    public <T> List<Diff> diffsWithContextFilter(T left, T right, ContextFilter contextFilter) {
-        return diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), contextFilter, isTransientOrStatic.negate());
-    }
-
-    public <T> List<Diff> diffs(T left, T right, Predicate<Field> fieldFilter) {
-        return diffs(left, right, checkDiffNulls(), allFieldContextFilter, fieldFilter);
-    }
-
-    public <T> List<Diff> diffs(T left, T right) {
-        return diffs(left, right, checkDiffNulls(), allFieldContextFilter, isTransientOrStatic.negate());
-    }
-
-    public <T> List<Diff> diffsNoTransientOrStatic(T left, T right, Predicate<Field> filterFields) {
-        return diffs(left, right, checkDiffNulls(), allFieldContextFilter, filterFields.and(isTransientOrStaticOrFinal.negate()));
-    }
-
-    public <T> List<Diff> fullDiffs(T left, T right, CheckDiffNulls checkNulls, ContextFilter contextFilter, Predicate<Field> fieldFilter) {
-        List<Diff> diffs = new ArrayList<Diff>();
-        diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkNulls, contextFilter, fieldFilter, diffs);
-        diffs(new ArrayDeque<>(), new ArrayDeque<>(), right, left, checkNulls, contextFilter, fieldFilter, diffs);
-        return diffs;
-    }
-
-    public <T> List<Diff> fullDiffs(T left, T right, ContextFilter contextFilter, Predicate<Field> fieldFilter) {
-        List<Diff> diffs = new ArrayList<Diff>();
-        diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), contextFilter, fieldFilter, diffs);
-        diffs(new ArrayDeque<>(), new ArrayDeque<>(), right, left, checkDiffNulls(), contextFilter, fieldFilter, diffs);
-        return diffs;
-    }
-
-    public <T> List<Diff> fullDiffs(T left, T right, ContextFilter contextFilter) {
-        List<Diff> diffs = new ArrayList<Diff>();
-        diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), contextFilter, isTransientOrStatic.negate(), diffs);
-        diffs(new ArrayDeque<>(), new ArrayDeque<>(), right, left, checkDiffNulls(), contextFilter, isTransientOrStatic.negate(), diffs);
-        return diffs;
-    }
-
-    public <T> List<Diff> fullDiffs(T left, T right, Predicate<Field> fieldFilter) {
-        List<Diff> diffs = new ArrayList<Diff>();
-        diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), allFieldContextFilter, fieldFilter, diffs);
-        diffs(new ArrayDeque<>(), new ArrayDeque<>(), right, left, checkDiffNulls(), allFieldContextFilter, fieldFilter, diffs);
-        return diffs;
-    }
-
-    public <T> List<Diff> fullDiffs(T left, T right) {
-        List<Diff> leftDiffs = diffs(left, right);
-        List<Diff> rightDiffs = diffs(right, left);
-        leftDiffs.addAll(rightDiffs);
-        return leftDiffs;
     }
 
     // Precondition checkers
@@ -440,9 +222,13 @@ public class FieldCompare {
         }
         pf.addLast(f);
         left.forEach((k, v) -> {
-            Object rightValue = right.get(k);
             prefix.addLast(k.toString());
-            compare(pf, prefix, null, fieldFilter, checkNulls, contextFilter, v, rightValue, diffs);
+            if(right.containsKey(k)) {
+                Object rightValue = right.get(k);
+                compare(pf, prefix, null, fieldFilter, checkNulls, contextFilter, v, rightValue, diffs);
+            } else {
+                diffs.add(new Diff(getFullName(pf, prefix), v.getClass(), v, "MISSING"));
+            }
             prefix.removeLast();
         });
         pf.removeLast();
@@ -1152,6 +938,222 @@ public class FieldCompare {
 
     }
 
+    // Ordering registry
+    //
+    private Map<Class<?>, Comparator> comparatorsMap = new HashMap<>();
+
+    public void clearComparators() {
+        comparatorsMap.clear();
+    }
+
+    public <T> void addComparator(Class<T> type, Comparator<T> comparator) {
+        comparatorsMap.put(type, comparator);
+    }
+
+    public <T> Comparator<T> getComparator(Class<T> type) {
+        return comparatorsMap.get(type);
+    }
+
+    public static Class<?> getCollectionType(Field field, Collection<?> collection) {
+        if (field != null)
+            return getCollectionType(field);
+        return getCollectionType(collection);
+    }
+
+    public static Class<?> getCollectionType(Field field) {
+        ParameterizedType paramType = (ParameterizedType) field.getGenericType();
+        Class<?> type = (Class<?>) paramType.getActualTypeArguments()[0];
+        return type;
+    }
+
+    public static Class<?> getCollectionType(Collection<?> collection) {
+        if (collection.isEmpty())
+            return null;
+        return collection.iterator().next().getClass();
+    }
+
+    public <T> boolean hasComparator(Class<T> type) {
+        return comparatorsMap.containsKey(type);
+    }
+
+    public <T> Collection<T> sortCollectionIfRequired(Collection<T> collection, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
+        Class<?> type = getCollectionType(collectionField, collection);
+        if (hasComparator(type))
+            return orderCollection(collection, (Class<T>) type, cloneFunc, defaultComparator);
+        return collection;
+    }
+
+    public <T> List<T> sortListIfRequired(List<T> collection, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
+        Class<?> type = getCollectionType(collectionField, collection);
+        if (hasComparator(type))
+            return orderList(collection, (Class<T>) type, cloneFunc, defaultComparator);
+        return collection;
+    }
+
+    public <T> Collection<T> sortCollection(Collection<T> collection, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
+        Class<?> type = getCollectionType(collectionField, collection);
+        return orderCollection(collection, (Class<T>) type, cloneFunc, defaultComparator);
+    }
+
+    public <T> List<T> sortList(List<T> list, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
+        return (List<T>) sortCollection(list, collectionField, cloneFunc, defaultComparator);
+    }
+
+    public <T> List<T> sortSet(Set<T> set, Field collectionField, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
+        return (List<T>) sortCollection(set, collectionField, cloneFunc, defaultComparator);
+    }
+
+    protected <T> Collection<T> orderCollection(Collection<T> collection, Class<T> type, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
+
+        Comparator<T> comparator = defaultComparator.get();
+
+        if (hasComparator(type)) {
+            comparator = (Comparator<T>) getComparator(type);
+        }
+
+        List<T> clone = cloneFunc.apply(collection);
+
+        clone.sort(comparator);
+
+        return clone;
+    }
+
+    protected <T> List<T> orderList(List<T> list, Class<T> type, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
+        return (List<T>) orderCollection(list, type, cloneFunc, defaultComparator);
+    }
+
+    protected <T> List<T> orderSet(Set<T> set, Class<T> type, Function<Collection<T>, List<T>> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
+        return (List<T>) orderCollection(set, type, cloneFunc, defaultComparator);
+    }
+
+    public static <T> Class<T> getArrayType(T[] array) {
+        return (Class<T>) array.getClass().getComponentType();
+    }
+
+    public static <T> Class<T> getArrayType(Field field) {
+        return (Class<T>) field.getType().getComponentType();
+    }
+
+    public static <T> Class<T> getArrayType(T[] array, Field field) {
+        Class<T> type = null;
+        if (field == null) {
+            type = getArrayType(array);
+        } else {
+            type = getArrayType(field);
+        }
+        return type;
+    }
+
+    public <T> T[] sortArray(T[] array, Field field, Function<T[], T[]> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
+        Class<?> type = getArrayType(array, field);
+        if (hasComparator(type))
+            return orderArray(array, (Class<T>) type, cloneFunc, defaultComparator);
+        return array;
+    }
+
+    protected <T> T[] orderArray(T[] array, Class<T> type, Function<T[], T[]> cloneFunc, Supplier<Comparator<T>> defaultComparator) {
+
+        Comparator<T> comparator = defaultComparator.get();
+
+        if (hasComparator(type)) {
+            comparator = (Comparator<T>) getComparator(type);
+        }
+
+        T[] cloneArray = cloneFunc.apply(array);
+
+        Arrays.sort(cloneArray, comparator);
+
+        return cloneArray;
+
+    }
+
+    public short[] sortArray(short[] array, Field field, Function<short[], short[]> cloneFunc, Supplier<Comparator<Short>> defaultComparator) {
+        if (hasComparator(short.class) || hasComparator(Short.class)) {
+            short[] clone = cloneFunc.apply(array);
+            List<Short> arrayList = Shorts.asList(clone);
+            orderList(arrayList, Short.class, l -> (List<Short>) l, defaultComparator);
+            return clone;
+
+        }
+        return array;
+    }
+
+    public int[] sortArray(int[] array, Field field, Function<int[], int[]> cloneFunc, Supplier<Comparator<Integer>> defaultComparator) {
+        if (hasComparator(int.class) || hasComparator(Integer.class)) {
+            int[] clone = cloneFunc.apply(array);
+            List<Integer> arrayList = Ints.asList(clone);
+            orderList(arrayList, Integer.class, l -> (List<Integer>) l, defaultComparator);
+            return clone;
+
+        }
+        return array;
+    }
+
+    public long[] sortArray(long[] array, Field field, Function<long[], long[]> cloneFunc, Supplier<Comparator<Long>> defaultComparator) {
+        if (hasComparator(long.class) || hasComparator(Long.class)) {
+            long[] clone = cloneFunc.apply(array);
+            List<Long> arrayList = Longs.asList(clone);
+            orderList(arrayList, Long.class, l -> (List<Long>) l, defaultComparator);
+            return clone;
+
+        }
+        return array;
+    }
+
+    public float[] sortArray(float[] array, Field field, Function<float[], float[]> cloneFunc, Supplier<Comparator<Float>> defaultComparator) {
+        if (hasComparator(float.class) || hasComparator(Long.class)) {
+            float[] clone = cloneFunc.apply(array);
+            List<Float> arrayList = Floats.asList(clone);
+            orderList(arrayList, Float.class, l -> (List<Float>) l, defaultComparator);
+            return clone;
+
+        }
+        return array;
+    }
+
+    public double[] sortArray(double[] array, Field field, Function<double[], double[]> cloneFunc, Supplier<Comparator<Double>> defaultComparator) {
+        if (hasComparator(double.class) || hasComparator(Double.class)) {
+            double[] clone = cloneFunc.apply(array);
+            List<Double> arrayList = Doubles.asList(clone);
+            orderList(arrayList, Double.class, l -> (List<Double>) l, defaultComparator);
+            return clone;
+
+        }
+        return array;
+    }
+
+    public boolean[] sortArray(boolean[] array, Field field, Function<boolean[], boolean[]> cloneFunc, Supplier<Comparator<Boolean>> defaultComparator) {
+        if (hasComparator(boolean.class) || hasComparator(Boolean.class)) {
+            boolean[] clone = cloneFunc.apply(array);
+            List<Boolean> arrayList = Booleans.asList(clone);
+            orderList(arrayList, Boolean.class, l -> (List<Boolean>) l, defaultComparator);
+            return clone;
+
+        }
+        return array;
+    }
+
+    public byte[] sortArray(byte[] array, Field field, Function<byte[], byte[]> cloneFunc, Supplier<Comparator<Byte>> defaultComparator) {
+        if (hasComparator(byte.class) || hasComparator(Byte.class)) {
+            byte[] clone = cloneFunc.apply(array);
+            List<Byte> arrayList = Bytes.asList(clone);
+            orderList(arrayList, Byte.class, l -> (List<Byte>) l, defaultComparator);
+            return clone;
+
+        }
+        return array;
+    }
+
+    public char[] sortArray(char[] array, Field field, Function<char[], char[]> cloneFunc, Supplier<Comparator<Character>> defaultComparator) {
+        if (hasComparator(char.class) || hasComparator(Character.class)) {
+            char[] clone = cloneFunc.apply(array);
+            List<Character> arrayList = Chars.asList(clone);
+            orderList(arrayList, Character.class, l -> (List<Character>) l, defaultComparator);
+            return clone;
+
+        }
+        return array;
+    }
 
     // Utility methods
     //

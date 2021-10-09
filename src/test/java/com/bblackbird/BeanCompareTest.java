@@ -24,9 +24,7 @@ import static com.bblackbird.FieldCompare.allFieldContextFilter;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.empty;
-//import static org.junit.Assert.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-//import static org.junit.Assert.assertThat;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class BeanCompareTest {
@@ -1230,9 +1228,12 @@ public class BeanCompareTest {
 
         right.getFxRates().put(key, rate);
 
+        left.getFxRates().put("junk",99.00);
+
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
 
-        assertThat(diffs, is(Arrays.asList(new Diff("fxRates." + key, Double.class, left.getFxRates().get(key), rate))));
+        assertThat(diffs, is(Arrays.asList(new Diff("fxRates." + key, Double.class, left.getFxRates().get(key), rate),
+                new Diff("fxRates.junk", Double.class, 99.00, "MISSING"))));
     }
 
     @Test
