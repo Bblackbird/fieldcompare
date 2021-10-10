@@ -8,7 +8,9 @@ Some good alternatives:
 
 Jav Object Diff
 https://java-object-diff.readthedocs.io/en/latest/
+
 https://github.com/SQiShER/java-object-diff
+
 https://www.woolha.com/tutorials/java-get-differences-between-two-objects
 
 JaVers
