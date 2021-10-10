@@ -7,6 +7,7 @@ The goal was to address 90% of most common scenarios, but make it possible for e
 Some good alternatives:
 
 Jav Object Diff
+
 https://java-object-diff.readthedocs.io/en/latest/
 
 https://github.com/SQiShER/java-object-diff
@@ -14,4 +15,5 @@ https://github.com/SQiShER/java-object-diff
 https://www.woolha.com/tutorials/java-get-differences-between-two-objects
 
 JaVers
+
 https://javers.org/
