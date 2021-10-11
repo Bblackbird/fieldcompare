@@ -894,6 +894,13 @@ public class BeanCompareTest {
                 });
 
         assertThat(diffs, empty());
+
+        diffs = beanCompare.diffsWithContextFilter(left, right,
+                fullName -> l -> r -> f -> {
+                    return "positions.3.positionAmt".equals(fullName) ? (Double) r == 0 ? false : true : true;
+                });
+
+        assertThat(diffs, is(Arrays.asList(new Diff("positions.3.positionAmt",double.class, left.getPositions().get(3).getPositionAmt(), right.getPositions().get(3).getPositionAmt()))));
     }
 
     @Test
@@ -1042,6 +1049,8 @@ public class BeanCompareTest {
         Portfolio right = clone(left);
         long longstat = left.getStats()[3] + 100L;
         right.getStats()[3] = longstat;
+
+        Collections.shuffle(Arrays.asList(right.getStats()));
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
 
@@ -1620,7 +1629,7 @@ public class BeanCompareTest {
         Collections.shuffle(traders);
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(String.class, (l, r) -> l.compareTo(r));
 
@@ -1642,7 +1651,7 @@ public class BeanCompareTest {
         subBooks[1] = tmp;
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(String.class, Comparator.naturalOrder());
 
@@ -1703,7 +1712,7 @@ public class BeanCompareTest {
         left[1] = tmp;
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(Integer.class, Comparator.naturalOrder());
 
@@ -1764,7 +1773,7 @@ public class BeanCompareTest {
         left[1] = tmp;
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(Long.class, Comparator.naturalOrder());
 
@@ -1804,7 +1813,7 @@ public class BeanCompareTest {
         left[1] = tmp;
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(Short.class, Comparator.naturalOrder());
 
@@ -1844,7 +1853,7 @@ public class BeanCompareTest {
         left[1] = tmp;
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(Float.class, Comparator.naturalOrder());
 
@@ -1884,7 +1893,7 @@ public class BeanCompareTest {
         left[1] = tmp;
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(Double.class, Comparator.naturalOrder());
 
@@ -1926,7 +1935,7 @@ public class BeanCompareTest {
         left[1] = tmp;
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(Boolean.class, Comparator.naturalOrder());
 
@@ -1966,7 +1975,7 @@ public class BeanCompareTest {
         left[1] = tmp;
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(Byte.class, Comparator.naturalOrder());
 
@@ -2011,7 +2020,7 @@ public class BeanCompareTest {
         left[1] = tmp;
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(Character.class, Comparator.naturalOrder());
 
@@ -2041,12 +2050,30 @@ public class BeanCompareTest {
         Collections.shuffle(right);
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(String.class, (l, r) -> l.compareTo(r));
 
         diffs = beanCompare.diffs(left, right, f -> true);
         assertThat(diffs, empty());
+    }
+
+    @Test
+    public void testOrderedTopLevelStringListComparisonWithoutSorting() {
+
+        String[] tmpLeft = getObject(String[].class);
+        List<String> left = toList(tmpLeft);
+
+        List<String> right = clone(left);
+
+        List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
+        assertThat(diffs, empty());
+
+        left.set(0, "BBLACKBIRD");
+        diffs = beanCompare.diffs(left, right, f -> true);
+
+        assertThat(diffs, is(Arrays.asList(new Diff("item.0", String.class, "BBLACKBIRD", right.get(0)))));
+
     }
 
     @Test
@@ -2063,7 +2090,7 @@ public class BeanCompareTest {
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
         logger.info(diffs.toString());
-        assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(Integer.class, Comparator.naturalOrder());
 
@@ -2082,7 +2109,8 @@ public class BeanCompareTest {
         Collections.shuffle(right);
 
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
-        assertThat(diffs, not(empty()));
+        //assertThat(diffs, not(empty()));
+        assertThat(diffs, empty());
 
         beanCompare.addComparator(Position.class, Comparator.comparing(Position::getBook));
 

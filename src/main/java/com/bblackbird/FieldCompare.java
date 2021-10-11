@@ -43,32 +43,58 @@ public class FieldCompare {
     public interface CompareFields<T> extends Function<Deque<Field>, Function<Deque<String>, Function<Predicate<Field>, Function<CheckDiffNulls, Function<ContextFilter, Function<T, Function<T, Function<Field, List<Diff>>>>>>>>> {
     }
 
-    // Main API
+    /**
+     * This is the entry point for all comparisons.
+     * It return list of all differences {@link com.bblackbird.Diff}.
+     * Diffs methods go through "left" argument and compare with content of "right" object.
+     * Full diffs methods compare them both ways and combine all differences.
+     */
 
+    /**
+     * Simplest method that defaults to catch-all context filter and filters out transient and static fields.
+     */
     public <T> List<Diff> diffs(T left, T right) {
         return diffs(left, right, checkDiffNulls(), allFieldContextFilter, isTransientOrStatic.negate());
     }
 
+    /**
+     * Overload that defaults to catch-all context filter and accepts custom field filter.
+     */
     public <T> List<Diff> diffs(T left, T right, Predicate<Field> fieldFilter) {
         return diffs(left, right, checkDiffNulls(), allFieldContextFilter, fieldFilter);
     }
 
+    /**
+     * Overload that defaults to catch-all context filter and accepts custom field filter, but still filters out transient and static fields.
+     */
     public <T> List<Diff> diffsNoTransientOrStatic(T left, T right, Predicate<Field> filterFields) {
         return diffs(left, right, checkDiffNulls(), allFieldContextFilter, filterFields.and(isTransientOrStaticOrFinal.negate()));
     }
 
+    /**
+     * Overload that accepts custom context filter and filters out transient and static fields.
+     */
     public <T> List<Diff> diffsWithContextFilter(T left, T right, ContextFilter contextFilter) {
         return diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), contextFilter, isTransientOrStatic.negate());
     }
 
+    /**
+     * Overload that accepts both custom context and field filters.
+     */
     public <T> List<Diff> diffs(T left, T right, ContextFilter contextFilter, Predicate<Field> fieldFilter) {
         return diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkDiffNulls(), contextFilter, fieldFilter);
     }
 
+    /**
+     * Overload that accepts both custom context and field filters and also function to compare for nulls.
+     */
     public <T> List<Diff> diffs(T left, T right, CheckDiffNulls checkNulls, ContextFilter contextFilter, Predicate<Field> fieldFilter) {
         return diffs(new ArrayDeque<>(), new ArrayDeque<>(), left, right, checkNulls, contextFilter, fieldFilter);
     }
 
+    /**
+     * Full-diffs series of methods just combines differences both ways.
+     */
     public <T> List<Diff> fullDiffs(T left, T right) {
         List<Diff> leftDiffs = diffs(left, right);
         List<Diff> rightDiffs = diffs(right, left);
@@ -105,11 +131,17 @@ public class FieldCompare {
     }
 
     /**
-     * Compare tvo same objects field by field
-     * Field filter - based on field details
+     * Compare tvo objects of same type field by field, left to right i.e. data in right object not present in left is not accounted for.
+     * This method is potentially recursively called as object fields are traversed.
+     *
+     * Parent Fields stores all parent field names
+     * Prefix has current value name(s)
+     * CheckDiffNulls - function used for comparing null values if any
      * Context Field Filter - based on full name, values and field details
+     * Field filter - based on field details
      * Object comparison
      * Collections - Lists, Maps, Sets and Collections only for now
+     * Arrays
      * Complex objects - user defined
      * Simple objects - jdk ones
      */
@@ -257,6 +289,8 @@ public class FieldCompare {
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, List<?> left, List<?> right, List<Diff> diffs) {
 
+        Set<Object>  rightSet = right.stream().collect(Collectors.toSet());
+
         left = sortListIfRequired(left, f, l -> new ArrayList(l), () -> null);
         right = sortListIfRequired(right, f, l -> new ArrayList(l), () -> null);
 
@@ -266,6 +300,11 @@ public class FieldCompare {
 
         for (int i = 0; i < left.size(); i++) {
             Object vLeft = left.get(i);
+
+            if(rightSet.contains(vLeft)) {
+                continue;
+            }
+
             prefix.addLast(String.valueOf(i));
             if (i < right.size()) {
                 Object vRight = right.get(i);
@@ -310,6 +349,8 @@ public class FieldCompare {
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextfilter, Collection<?> left, Collection<?> right, List<Diff> diffs) {
 
+        Set<Object>  rightSet = right.stream().collect(Collectors.toSet());
+
         left = sortCollectionIfRequired(left, f, l -> new ArrayList(l), () -> null);
         right = sortCollectionIfRequired(right, f, l -> new ArrayList(l), () -> null);
 
@@ -321,6 +362,11 @@ public class FieldCompare {
         Iterator<?> rightIter = right.iterator();
         for (int i = 0; i < left.size(); i++) {
             Object vLeft = leftIter.next();
+
+            if(rightSet.contains(vLeft)) {
+                continue;
+            }
+
             prefix.addLast(String.valueOf(i));
             if (i < right.size()) {
                 Object vRight = rightIter.next();
@@ -642,12 +688,19 @@ public class FieldCompare {
 
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls, ContextFilter contextFilter, short[] left, short[] right, List<Diff> diffs) {
 
+        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
 
         for (int i = 0; i < left.length; i++) {
 
             short vLeft = left[i];
+
+            if(rightSet.contains(vLeft)){
+                continue;
+            }
+
             prefix.addLast(String.valueOf(i));
             if (i < right.length) {
 
@@ -664,12 +717,19 @@ public class FieldCompare {
 
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls, ContextFilter contextFilter, int[] left, int[] right, List<Diff> diffs) {
 
+        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
 
         for (int i = 0; i < left.length; i++) {
 
             int vLeft = left[i];
+
+            if(rightSet.contains(vLeft)){
+                continue;
+            }
+
             prefix.addLast(String.valueOf(i));
             if (i < right.length) {
 
@@ -687,11 +747,18 @@ public class FieldCompare {
 
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls, ContextFilter contextFilter, long[] left, long[] right, List<Diff> diffs) {
 
+        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
 
         for (int i = 0; i < left.length; i++) {
             long vLeft = left[i];
+
+            if(rightSet.contains(vLeft)){
+                continue;
+            }
+
             prefix.addLast(String.valueOf(i));
             if (i < right.length) {
                 long vRight = right[i];
@@ -707,11 +774,18 @@ public class FieldCompare {
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, boolean[] left, boolean[] right, List<Diff> diffs) {
 
+        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
 
         for (int i = 0; i < left.length; i++) {
             boolean vLeft = left[i];
+
+            if(rightSet.contains(vLeft)){
+                continue;
+            }
+
             prefix.addLast(String.valueOf(i));
             if (i < right.length) {
                 boolean vRight = right[i];
@@ -728,11 +802,18 @@ public class FieldCompare {
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, byte[] left, byte[] right, List<Diff> diffs) {
 
+        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
 
         for (int i = 0; i < left.length; i++) {
             byte vLeft = left[i];
+
+            if(rightSet.contains(vLeft)){
+                continue;
+            }
+
             prefix.addLast(String.valueOf(i));
             if (i < right.length) {
                 byte vRight = right[i];
@@ -748,11 +829,18 @@ public class FieldCompare {
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, char[] left, char[] right, List<Diff> diffs) {
 
+        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
 
         for (int i = 0; i < left.length; i++) {
             char vLeft = left[i];
+
+            if(rightSet.contains(vLeft)){
+                continue;
+            }
+
             prefix.addLast(String.valueOf(i));
             if (i < right.length) {
                 char vRight = right[i];
@@ -768,11 +856,18 @@ public class FieldCompare {
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextfilter, double[] left, double[] right, List<Diff> diffs) {
 
+        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
 
         for (int i = 0; i < left.length; i++) {
             double vLeft = left[i];
+
+            if(rightSet.contains(vLeft)){
+                continue;
+            }
+
             prefix.addLast(String.valueOf(i));
             if (i < right.length) {
                 double vRight = right[i];
@@ -788,11 +883,18 @@ public class FieldCompare {
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, float[] left, float[] right, List<Diff> diffs) {
 
+        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
 
         for (int i = 0; i < left.length; i++) {
             float vLeft = left[i];
+
+            if(rightSet.contains(vLeft)){
+                continue;
+            }
+
             prefix.addLast(String.valueOf(i));
             if (i < right.length) {
                 float vRight = right[i];
@@ -816,6 +918,7 @@ public class FieldCompare {
     protected <T> List<Diff> compareArray(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                           ContextFilter contextFilter, T[] left, T[] right, List<Diff> diffs) {
 
+        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
 
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
@@ -824,6 +927,11 @@ public class FieldCompare {
             pf.addLast(f);
         for (int i = 0; i < left.length; i++) {
             Object vLeft = left[i];
+
+            if(rightSet.contains(vLeft)){
+                continue;
+            }
+
             prefix.addLast(String.valueOf(i));
             if (i < right.length) {
                 Object vRight = right[i];
