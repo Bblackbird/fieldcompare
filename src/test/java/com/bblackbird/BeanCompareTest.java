@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.*;
@@ -28,14 +29,15 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 public class BeanCompareTest {
 
-    private static Logger logger = LoggerFactory.getLogger(BeanCompareTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(BeanCompareTest.class);
 
     public enum PositionType {
-        BLACK, RED;
+        BLACK, RED
     }
 
     public static abstract class Base implements Serializable {
-        private static final long serialversionUID = 1L;
+        @Serial
+        private static final long serialVersionUID = 1L;
 
         @Override
         public int hashCode() {
@@ -55,6 +57,7 @@ public class BeanCompareTest {
 
     public static class Position extends Base {
 
+        @Serial
         private static final long serialVersionUID = 1L;
 
         private String book;
@@ -291,7 +294,7 @@ public class BeanCompareTest {
         beanCompare.clearComparators();
     }
 
-    private static PodamFactory objFactory = new PodamFactoryImpl();
+    private static final PodamFactory objFactory = new PodamFactoryImpl();
 
     public static <T> T getObject(Class<T> klazz) {
         return objFactory.manufacturePojo(klazz);
@@ -411,7 +414,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void testEqualobjects() {
+    public void testEqualObjects() {
 
         Portfolio left = getObject(Portfolio.class);
 
@@ -580,7 +583,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void testBigDecimaBothNull() {
+    public void testBigDecimalBothNull() {
 
         Portfolio left = getObject(Portfolio.class);
         left.setTotalPosition(null);
@@ -748,7 +751,7 @@ public class BeanCompareTest {
 
 
     @Test
-    public void testUserDefinedobject() {
+    public void testUserDefinedObject() {
 
         Portfolio left = getObject(Portfolio.class);
 
@@ -804,7 +807,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void testUserDefinedObjectInlist() {
+    public void testUserDefinedObjectInList() {
 
         Portfolio left = getObject(Portfolio.class);
 
@@ -819,7 +822,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void testUserDefinedObjectInlist2() {
+    public void testUserDefinedObjectInList2() {
 
         Portfolio left = getObject(Portfolio.class);
 
@@ -833,7 +836,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void testUserDefinedObjectInListwithContextFilter() {
+    public void testUserDefinedObjectInListWithContextFilter() {
         Portfolio left = getObject(Portfolio.class);
         Portfolio right = clone(left);
         double positionAmt = left.getPositions().get(3).getPositionAmt() + 1000.00;
@@ -846,7 +849,7 @@ public class BeanCompareTest {
     public static ContextFilter filterSpecificNestedField = fullName -> l -> r -> f -> "positions.3.positionAmt".equals(fullName) ? false : true;
 
     @Test
-    public void testUserDefinedObjectInlistUsingContextFilterBasedonFullName() {
+    public void testUserDefinedObjectInListUsingContextFilterBasedOnFullName() {
 
         Portfolio left = getObject(Portfolio.class);
 
@@ -860,7 +863,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void testUserDefinedObjectInlistUsingContextFilterBasedOnFullNameNegativeTest() {
+    public void testUserDefinedObjectInListUsingContextFilterBasedOnFullNameNegativeTest() {
 
         Portfolio left = getObject(Portfolio.class);
 
@@ -918,16 +921,16 @@ public class BeanCompareTest {
         assertThat(diffs, empty());
     }
 
-    private static Set<String> defaultExcludeFieldset = Sets.newHashSet("size", "book");
+    private static final Set<String> defaultExcludeFieldset = Sets.newHashSet("size", "book");
 
-    private static ContextFilter contextFilter = fullName -> l -> I -> f -> {
+    private static final ContextFilter contextFilter = fullName -> l -> I -> f -> {
         return defaultExcludeFieldset.contains(f.getName()) ?
                 false :
                 !(fullName.startsWith("positions.") && fullName.contains(Position.class.getName()) && "TMF".equals(((Position) l).getBook()));
     };
 
     @Test
-    public void testUserDefinedobjectInListUsingContextFilterBasedonComplexValue() {
+    public void testUserDefinedObjectInListUsingContextFilterBasedOnComplexValue() {
 
         Portfolio left = getObject(Portfolio.class);
         left.getPositions().get(3).setBook("TMF");
@@ -949,7 +952,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void testUserDefinedObjectInListUsingContextFilterBasedonComplexValue2() {
+    public void testUserDefinedObjectInListUsingContextFilterBasedOnComplexValue2() {
 
         Portfolio left = getObject(Portfolio.class);
         left.getPositions().get(3).setBook("TMF");
@@ -988,7 +991,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void testUserDefinedobjectInListUsingContextFilterBasedonComplexValueWithLeftNull() {
+    public void testUserDefinedObjectInListUsingContextFilterBasedOnComplexValueWithLeftNull() {
 
         Portfolio left = getObject(Portfolio.class);
 
@@ -1369,7 +1372,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void teststringArrayInUserDefinedObjectInListLeftNull() {
+    public void testStringArrayInUserDefinedObjectInListLeftNull() {
 
         Portfolio left = getObject(Portfolio.class);
 
@@ -1408,7 +1411,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void testStringArrayInUserDefinedObjectInlist() {
+    public void testStringArrayInUserDefinedObjectInList() {
 
         Portfolio left = getObject(Portfolio.class);
 
@@ -1432,7 +1435,6 @@ public class BeanCompareTest {
         List<Diff> diffs = beanCompare.diffs(left, right, f -> true);
 
         assertThat(diffs, is(Arrays.asList(new Diff("positions.0.subBooks.3", String.class, "NULL", right.getPositions().get(0).getSubBooks()[3]))));
-        ;
     }
 
     @Test
@@ -1449,7 +1451,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void testStringArrayInUserDefinedObjectInlistValueBothNull() {
+    public void testStringArrayInUserDefinedObjectInListValueBothNull() {
 
         Portfolio left = getObject(Portfolio.class);
         left.getPositions().get(0).getSubBooks()[3] = null;
@@ -1517,7 +1519,7 @@ public class BeanCompareTest {
     }
 
     @Test
-    public void testMapInUserDefinedObjectInlist() {
+    public void testMapInUserDefinedObjectInList() {
 
         Portfolio left = getObject(Portfolio.class);
 
