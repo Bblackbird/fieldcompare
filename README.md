@@ -34,17 +34,16 @@ This snippet shows how it can be used to validate full data correctness in unit 
         assertThat(shouldBeEmpty, empty());
 
 Diff object contains:
-- full name to test value in following formats:
+1) full name to test value in following formats:
   a) <property instance name>[.<sub property instance name>...] in case of simple properties
   b) <property instance name>.<key name> in case of maps
   c) <property instance name>.<index>.<property name> in case of collections, lists and arrays
-- Data type
-- "Left" value
-- "Right" value
+2) Data type
+3) "Left" value which is projected onto "Right" value for any differences
+4) "Right" value
 
 Please note that "Left" value is compared to "Right" value properties, so in case one cares about properties in "Right" value not present in "Left", one should either swith their place and run the same diff() method again, or use fullDiff() methods.
-  
-  
+
 This utility goes really hand in hand with some of the java data generator libraries, like the one used in unit test here:
 https://mtedone.github.io/podam/
 This is article that also describe usage of it:

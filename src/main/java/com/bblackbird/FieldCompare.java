@@ -3,8 +3,12 @@ package com.bblackbird;
 import com.google.common.base.Strings;
 import com.google.common.primitives.*;
 
+import java.io.Serializable;
 import java.lang.reflect.*;
 import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.net.URI;
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -12,6 +16,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class FieldCompare {
 
@@ -43,6 +49,7 @@ public class FieldCompare {
     public interface CompareFields<T> extends Function<Deque<Field>, Function<Deque<String>, Function<Predicate<Field>, Function<CheckDiffNulls, Function<ContextFilter, Function<T, Function<T, Function<Field, List<Diff>>>>>>>>> {
     }
 
+    //region Main API
     /**
      * This is the entry point for all comparisons.
      * It return list of all differences {@link com.bblackbird.Diff}.
@@ -93,7 +100,7 @@ public class FieldCompare {
     }
 
     /**
-     * Full-diffs series of methods just combines differences both ways.
+     * Full-diffs series of methods just combine differences both ways.
      */
     public <T> List<Diff> fullDiffs(T left, T right) {
         List<Diff> leftDiffs = diffs(left, right);
@@ -132,14 +139,14 @@ public class FieldCompare {
 
     /**
      * Compare tvo objects of same type field by field, left to right i.e. data in right object not present in left is not accounted for.
-     * This method is potentially recursively called as object fields are traversed.
+     * This method is recursively called as object fields are traversed.
      *
-     * Parent Fields stores all parent field names
-     * Prefix has current value name(s)
+     * Parent Fields stores stack of all parent field names
+     * Prefix has stack of value name(s)
      * CheckDiffNulls - function used for comparing null values if any
-     * Context Field Filter - based on full name, values and field details
+     * Context Field Filter - allows field filtering based on context that consists of full name, values and field details
      * Field filter - based on field details
-     * Object comparison
+     * Object comparison supported for following types:
      * Collections - Lists, Maps, Sets and Collections only for now
      * Arrays
      * Complex objects - user defined
@@ -156,12 +163,16 @@ public class FieldCompare {
     public <T> List<Diff> diffs(Deque<Field> parentFields, Deque<String> prefix, T left, T right, CheckDiffNulls checkNulls,
                                 ContextFilter contextFilter, Predicate<Field> fieldFilter, List<Diff> diffs) {
 
-        if (!checkNulls(parentFields, prefix, getClassName(left, right), left, right, diffs).isEmpty())
+        List<Diff> checkNullDiffs = checkNulls.apply(parentFields).apply(prefix).apply(getClassName(left, right)).apply(left).apply(right);
+        if (!checkNullDiffs.isEmpty()) {
+            diffs.addAll(checkNullDiffs);
             return diffs;
+        }
+
         if (!checkClassNames(parentFields, prefix, getClassName(left, right), left, right, diffs).isEmpty())
             return diffs;
 
-        if (left == right || left.equals(right))
+        if (compareObjects(left, right))
             return diffs;
 
         if (!parentFields.isEmpty() && !contextFilter.apply(getFullName(parentFields, prefix, left.getClass().getName())).apply(left).apply(right)
@@ -190,38 +201,104 @@ public class FieldCompare {
                 .collect(Collectors.toList());
     }
 
-    // Precondition checkers
-    //
+    protected <T> boolean compareObjects(T left, T right) {
+        return left == right || left.equals(right);
+    }
 
+    protected <T> CompareFields<T> compareFields() {
+        return pf -> prefix -> fieldFilter -> checkNulls -> contextFilter -> left -> right -> f -> {
+            List<Diff> nullDiff = checkNulls.apply(pf).apply(prefix).apply(f.getName()).apply(left).apply(right);
+            if (!nullDiff.isEmpty()) {
+                return nullDiff;
+            }
+
+            if (left == null || left == right || left.equals(right)) {
+                return Collections.emptyList();
+            }
+            List<Diff> diffs = new ArrayList<Diff>();
+            if (isString(left.getClass())) {
+                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (String) left, (String) right, diffs);
+            }
+
+            if (isPrimitiveType(left.getClass())) {
+                return compareAnyPrimitiveType(pf, prefix, f, fieldFilter, checkNulls, contextFilter, left, right, diffs);
+            }
+
+            if (left instanceof Enum<?>) {
+                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (Enum<?>) left, (Enum<?>) right, diffs);
+            }
+
+            if (f.getType().isAssignableFrom(BigDecimal.class))
+                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (BigDecimal) left, (BigDecimal) right, diffs);
+
+            if (f.getType().isAssignableFrom(List.class))
+                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (List<?>) left, (List<?>) right, diffs);
+            else if (f.getType().isAssignableFrom(Map.class))
+                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (Map<?, ?>) left, (Map<?, ?>) right, diffs);
+            else if (f.getType().isAssignableFrom(Set.class))
+                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (Set<?>) left, (Set<?>) right, diffs);
+            else if (f.getType().isAssignableFrom(Collection.class))
+                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (Collection<?>) left, (Collection<?>) right, diffs);
+            else if (f.getType().isArray()) {
+                return compareAnyArray(pf, prefix, f, fieldFilter, checkNulls, contextFilter, left, right, diffs);
+            }
+
+            return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, left, right, diffs);
+        };
+
+    }
+    //endregion
+
+    //region Precondition Checkers
+    /**
+     * Precondition checkers
+     */
     protected CheckDiffNulls checkDiffNulls() {
         return pf -> prefix -> name -> l -> r -> checkDiffNulls(pf, prefix, name, l, r);
     }
 
-    // This check is only used for top level object null comparison
-    //
-    protected List<Diff> checkNulls(Deque<Field> pf, Deque<String> prefix, String fieldName, Object left, Object right, List<Diff> diffs) {
-        if (left == null && right == null) {
-            diffs.add(new Diff(getFullName(pf, prefix, fieldName), null, "NULL", "NULL"));
-        } else if (left != null && right == null) {
-            diffs.add(new Diff(getFullName(pf, prefix, fieldName), left.getClass(), "NON-NULL", "NULL"));
-        } else if (left == null && right != null) {
-            diffs.add(new Diff(getFullName(pf, prefix, fieldName), right.getClass(), "NULL", "NONNULL"));
-        }
-        return diffs;
+    protected List<Diff> createDiff(Deque<Field> pf, Deque<String> prefix, String fieldName, Class<?> type, Object left, Object right) {
+        return Collections.singletonList(new Diff(getFullName(pf, prefix, fieldName), type, left, right));
     }
 
-    protected <T> List<Diff> checkDiffNulls(Deque<Field> pf, Deque<String> prefix, String fieldName, T left, T right) {
+    /**
+     *
+     * This null check is used in case of "complex" types in order to make less verbose output.
+     */
+    protected List<Diff> checkComplexTypeNulls(Deque<Field> pf, Deque<String> prefix, String fieldName, Object left, Object right) {
+
         if (left == null && right == null) {
-            //diffs.add(new Diff (getFullName (pf, field), "NULL", "NULL"));
-            return Collections.emptyList();
+            return createDiff(pf, prefix, fieldName, null, "NULL", "NULL");
         } else if (left != null && right == null) {
-            return Collections.singletonList(new Diff(getFullName(pf, prefix, fieldName), left.getClass(), left, "NULL"));
+            return createDiff(pf, prefix, fieldName, left.getClass(), "NON-NULL", "NULL");
         } else if (left == null && right != null) {
-            return Collections.singletonList(new Diff(getFullName(pf, prefix, fieldName), right.getClass(), "NULL", right));
+            return createDiff(pf, prefix, fieldName, right.getClass(), "NULL", "NON-NULL");
         }
         return Collections.emptyList();
     }
 
+    /**
+     * Method responsible how to deal with null comparisons for both simple and non-simple types.
+     */
+    protected <T> List<Diff> checkDiffNulls(Deque<Field> pf, Deque<String> prefix, String fieldName, T left, T right) {
+
+        if(!isSimpleType(getClassType(left, right)))
+            return checkComplexTypeNulls(pf, prefix, fieldName, left, right);
+
+        if (left == null && right == null) {
+            //diffs.add(new Diff (getFullName (pf, field), "NULL", "NULL"));
+            return Collections.emptyList();
+        } else if (left != null && right == null) {
+            return createDiff(pf, prefix, fieldName, left.getClass(), left, "NULL");
+        } else if (left == null && right != null) {
+            return createDiff(pf, prefix, fieldName, right.getClass(), "NULL", right);
+        }
+        return Collections.emptyList();
+    }
+
+    /**
+     *  Check if object types compared are the same.
+     */
     protected List<Diff> checkClassNames(Deque<Field> pf, Deque<String> prefix, String fieldName, Object left, Object right, List<Diff> diffs) {
         if (!left.getClass().getName().equals(right.getClass().getName())) {
             diffs.add(new Diff(getFullName(pf, prefix, fieldName), left.getClass(), left.getClass().getName(), right.getClass().getName()));
@@ -229,19 +306,24 @@ public class FieldCompare {
         return diffs;
     }
 
-    // Optional logging methods
-    //
+    /**
+     * Optional logging methods
+     */
     protected void log(Deque<Field> pf, Deque<String> prefix, Field f, Object left, Object right) {
     }
 
     protected void log(Deque<Field> pf, Deque<String> prefix, Field f, Object left, Object right, Exception e) {
     }
+    //endregion
 
-    // Field value comparison methods
-    //
+    //region Comparison Methods
+    /**
+     * Field value comparison methods
+     */
 
-    // Collections comparison methods
-
+    /**
+     * Collections comparison methods
+     */
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, Map<?, ?> left, Map<?, ?> right, List<Diff> diffs) {
         List<Diff> checkNullDiffs = checkNulls.apply(pf).apply(prefix).apply(getClassName(left, right)).apply(left).apply(right);
@@ -381,7 +463,9 @@ public class FieldCompare {
         return diffs;
     }
 
-    //Object comparison method
+    /**
+     * Object comparison method
+     */
 
     public int compare(Object left, Object right) {
 
@@ -426,7 +510,9 @@ public class FieldCompare {
         return diffs;
     }
 
-    // Support for String type
+    /**
+     * Support for String type
+     */
 
     public int compare(String left, String right) {
         return left.compareTo(right);
@@ -440,8 +526,9 @@ public class FieldCompare {
         return diffs;
     }
 
-
-    //Support for Big Decimal type
+    /**
+     * Support for Big Decimal type
+     */
 
     public int compare(BigDecimal left, BigDecimal right) {
         BigDecimal leftClean = left.stripTrailingZeros();
@@ -462,7 +549,9 @@ public class FieldCompare {
         return diffs;
     }
 
-    // Support for Enum types
+    /**
+     * Support for Enum types
+     */
 
     public int compare(Enum<?> left, Enum<?> right) {
         return left.ordinal() - right.ordinal();
@@ -476,7 +565,9 @@ public class FieldCompare {
         return diffs;
     }
 
-    // Support for primitive types
+    /**
+     * Support for primitive types
+     */
 
     public int compare(int left, int right) {
         return Integer.compare(left, right);
@@ -578,7 +669,9 @@ public class FieldCompare {
         return diffs;
     }
 
-    // Primitive wrappers
+    /**
+     * Primitive wrappers
+     */
 
     public int compare(Integer left, Integer right) {
         return Integer.compare(left, right);
@@ -683,12 +776,13 @@ public class FieldCompare {
         return diffs;
     }
 
-    // Primitive array types support - only because of java generics limitations
-    //
+    /**
+     * Primitive array types support - only because of java generics limitations
+     */
 
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls, ContextFilter contextFilter, short[] left, short[] right, List<Diff> diffs) {
 
-        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+        Set<Object>  rightSet = convertToSet(right);
 
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
@@ -715,9 +809,15 @@ public class FieldCompare {
         return diffs;
     }
 
+    protected Set<Object> convertToSet( final short[] arr) {
+        return IntStream.range(0, arr.length)
+                .mapToObj(i -> arr[i])
+                .collect(Collectors.toSet());
+    }
+
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls, ContextFilter contextFilter, int[] left, int[] right, List<Diff> diffs) {
 
-        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+        Set<Object>  rightSet = Arrays.stream(right).boxed().collect(Collectors.toSet());
 
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
@@ -747,7 +847,7 @@ public class FieldCompare {
 
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls, ContextFilter contextFilter, long[] left, long[] right, List<Diff> diffs) {
 
-        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+        Set<Object>  rightSet = Arrays.stream(right).boxed().collect(Collectors.toSet());
 
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
@@ -774,7 +874,7 @@ public class FieldCompare {
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, boolean[] left, boolean[] right, List<Diff> diffs) {
 
-        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+        Set<Object>  rightSet = convertToSet(right);
 
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
@@ -798,11 +898,16 @@ public class FieldCompare {
         return diffs;
     }
 
+    protected Set<Object> convertToSet( final boolean[] arr) {
+        return IntStream.range(0, arr.length)
+                .mapToObj(i -> arr[i])
+                .collect(Collectors.toSet());
+    }
 
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, byte[] left, byte[] right, List<Diff> diffs) {
 
-        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+        Set<Object>  rightSet = convertToSet(right);
 
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
@@ -826,10 +931,16 @@ public class FieldCompare {
         return diffs;
     }
 
+    protected Set<Object> convertToSet( final byte[] arr) {
+        return IntStream.range(0, arr.length)
+                .mapToObj(i -> arr[i])
+                .collect(Collectors.toSet());
+    }
+
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, char[] left, char[] right, List<Diff> diffs) {
 
-        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+        Set<Object>  rightSet = convertToSet(right);
 
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
@@ -853,10 +964,16 @@ public class FieldCompare {
         return diffs;
     }
 
+    protected Set<Object> convertToSet( final char[] arr) {
+        return IntStream.range(0, arr.length)
+                .mapToObj(i -> arr[i])
+                .collect(Collectors.toSet());
+    }
+
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextfilter, double[] left, double[] right, List<Diff> diffs) {
 
-        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+        Set<Object>  rightSet = Arrays.stream(right).boxed().collect(Collectors.toSet());
 
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
@@ -883,7 +1000,7 @@ public class FieldCompare {
     protected List<Diff> compare(Deque<Field> pf, Deque<String> prefix, Field f, Predicate<Field> fieldFilter, CheckDiffNulls checkNulls,
                                  ContextFilter contextFilter, float[] left, float[] right, List<Diff> diffs) {
 
-        Set<Object>  rightSet = Arrays.asList(right).stream().collect(Collectors.toSet());
+        Set<Object>  rightSet = convertToSet(right);
 
         left = sortArray(left, f, a -> a.clone(), () -> null);
         right = sortArray(right, f, a -> a.clone(), () -> null);
@@ -905,6 +1022,12 @@ public class FieldCompare {
             prefix.removeLast();
         }
         return diffs;
+    }
+
+    protected Set<Object> convertToSet( final float[] arr) {
+        return IntStream.range(0, arr.length)
+                .mapToObj(i -> arr[i])
+                .collect(Collectors.toSet());
     }
 
     // End of primitive array support
@@ -1002,52 +1125,13 @@ public class FieldCompare {
 
         return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, left, right, diffs);
     }
+    //endregion
 
-    protected <T> CompareFields<T> compareFields() {
-        return pf -> prefix -> fieldFilter -> checkNulls -> contextFilter -> left -> right -> f -> {
-            List<Diff> nullDiff = checkNulls.apply(pf).apply(prefix).apply(f.getName()).apply(left).apply(right);
-            if (!nullDiff.isEmpty()) {
-                return nullDiff;
-            }
+    //region Ordering Registry
+    /**
+     * Ordering registry
+     */
 
-            if (left == null || left == right || left.equals(right)) {
-                return Collections.emptyList();
-            }
-            List<Diff> diffs = new ArrayList<Diff>();
-            if (isString(left.getClass())) {
-                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (String) left, (String) right, diffs);
-            }
-
-            if (isPrimitiveType(left.getClass())) {
-                return compareAnyPrimitiveType(pf, prefix, f, fieldFilter, checkNulls, contextFilter, left, right, diffs);
-            }
-
-            if (left instanceof Enum<?>) {
-                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (Enum<?>) left, (Enum<?>) right, diffs);
-            }
-
-            if (f.getType().isAssignableFrom(BigDecimal.class))
-                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (BigDecimal) left, (BigDecimal) right, diffs);
-
-            if (f.getType().isAssignableFrom(List.class))
-                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (List<?>) left, (List<?>) right, diffs);
-            else if (f.getType().isAssignableFrom(Map.class))
-                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (Map<?, ?>) left, (Map<?, ?>) right, diffs);
-            else if (f.getType().isAssignableFrom(Set.class))
-                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (Set<?>) left, (Set<?>) right, diffs);
-            else if (f.getType().isAssignableFrom(Collection.class))
-                return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, (Collection<?>) left, (Collection<?>) right, diffs);
-            else if (f.getType().isArray()) {
-                return compareAnyArray(pf, prefix, f, fieldFilter, checkNulls, contextFilter, left, right, diffs);
-            }
-
-            return compare(pf, prefix, f, fieldFilter, checkNulls, contextFilter, left, right, diffs);
-        };
-
-    }
-
-    // Ordering registry
-    //
     private Map<Class<?>, Comparator> comparatorsMap = new HashMap<>();
 
     public void clearComparators() {
@@ -1262,9 +1346,35 @@ public class FieldCompare {
         }
         return array;
     }
+    //endregion
 
-    // Utility methods
-    //
+    //region Utility Methods
+    /**
+     * Utility methods
+     */
+
+    private static final Collection<Class<?>> EXTENDABLE_SIMPLE_TYPES = Arrays.asList(
+            BigDecimal.class,
+            BigInteger.class,
+            CharSequence.class, // String, StringBuilder, etc.
+            Calendar.class, // GregorianCalendar, etc.
+            Date.class, // java.sql.Date, java.util.Date, java.util.Time, etc.
+            Enum.class // enums... duh
+    );
+
+    private static final List<Class<? extends Serializable>> FINAL_SIMPLE_TYPES = Arrays.asList(
+            Class.class,
+            URI.class,
+            URL.class,
+            Locale.class,
+            UUID.class
+    );
+
+    public static boolean isComparableType(final Class<?> clazz)
+    {
+        return Comparable.class.isAssignableFrom(clazz);
+    }
+
     public boolean isPrimitiveType(Class<?> clazz) {
         return clazz.isPrimitive() || Primitives.isWrapperType(clazz);
     }
@@ -1277,8 +1387,32 @@ public class FieldCompare {
         return clazz.getName().startsWith("java.");
     }
 
-    public boolean isSimpleType(Class<?> clazz) {
-        return isPrimitiveType(clazz) || clazz.isEnum() || isJdk(clazz);
+    public boolean isSimpleType(final Class<?> clazz)
+    {
+        if (clazz == null)
+        {
+            return false;
+        }
+        else if (isPrimitiveType(clazz))
+        {
+            return true;
+        }
+
+        for (final Class<?> type : FINAL_SIMPLE_TYPES)
+        {
+            if (type.equals(clazz))
+            {
+                return true;
+            }
+        }
+        for (final Class<?> type : EXTENDABLE_SIMPLE_TYPES)
+        {
+            if (type.isAssignableFrom(clazz))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean isCollection(Class<?> clazz) {
@@ -1287,6 +1421,10 @@ public class FieldCompare {
 
     public <T> String getClassName(T left, T right) {
         return left != null ? left.getClass().getSimpleName() : right != null ? right.getClass().getSimpleName() : "ALL";
+    }
+
+    public <T> Class<?> getClassType(T left, T right) {
+        return left != null ? left.getClass() : right != null ? right.getClass() : null;
     }
 
     // Used for null checking
@@ -1357,9 +1495,13 @@ public class FieldCompare {
     protected String getFullName(Deque<Field> pf) {
         return pf.stream().map(f -> f.getName()).collect(Collectors.joining("."));
     }
+    //endregion
 
-    // Reflection related code
-    //
+    //region Reflection Methods
+    /**
+     * Reflection related code
+     */
+
     public static List<Field> getAllDeclaredFields(Class<?> clazz, Predicate<Field> filter) {
 
         List<Field> fields = new ArrayList<>();
@@ -1521,5 +1663,6 @@ public class FieldCompare {
         }
         throw new UndeclaredThrowableException(ex);
     }
+    //endregion
 
 }
