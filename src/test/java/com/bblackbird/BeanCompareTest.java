@@ -1,6 +1,5 @@
 package com.bblackbird;
 
-
 import com.bblackbird.FieldCompare.ContextFilter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
