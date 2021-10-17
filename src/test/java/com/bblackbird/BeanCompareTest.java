@@ -3,10 +3,8 @@ package com.bblackbird;
 import com.bblackbird.FieldCompare.ContextFilter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import lombok.Data;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -34,29 +32,8 @@ public class BeanCompareTest {
         BLACK, RED
     }
 
-    public static abstract class Base implements Serializable {
-
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public int hashCode() {
-            return HashCodeBuilder.reflectionHashCode(this);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return EqualsBuilder.reflectionEquals(this, obj);
-        }
-
-        @Override
-        public String toString() {
-            return ToStringBuilder.reflectionToString(this);
-        }
-    }
-
-    public static class Position extends Base {
-
-        private static final long serialVersionUID = 1L;
+    @Data
+    public static class Position implements Serializable {
 
         private String book;
         private String product;
@@ -67,77 +44,10 @@ public class BeanCompareTest {
         private Map<String, String> bookToProducts;
         private Set<String> bookSet;
 
-        public Position() {
-        }
-
-        public String getBook() {
-            return book;
-        }
-
-        public void setBook(String book) {
-            this.book = book;
-        }
-
-        public String getProduct() {
-            return product;
-        }
-
-        public void setProduct(String product) {
-            this.product = product;
-        }
-
-        public double getPositionAmt() {
-            return positionAmt;
-        }
-
-        public void setPositionAmt(double positionAmt) {
-            this.positionAmt = positionAmt;
-        }
-
-        public List<String> getTraders() {
-            return traders;
-        }
-
-        public void setTraders(List<String> traders) {
-            this.traders = traders;
-        }
-
-        public int[] getStats() {
-            return stats;
-        }
-
-        public void setStats(int[] stats) {
-            this.stats = stats;
-        }
-
-        public String[] getSubBooks() {
-            return subBooks;
-        }
-
-        public void setSubBooks(String[] subBooks) {
-            this.subBooks = subBooks;
-        }
-
-        public Map<String, String> getBookToProducts() {
-            return bookToProducts;
-        }
-
-        public void setBookToProducts(Map<String, String> bookToProducts) {
-            this.bookToProducts = bookToProducts;
-        }
-
-        public Set<String> getBookSet() {
-            return bookSet;
-        }
-
-        public void setBookSet(Set<String> bookSet) {
-            this.bookSet = bookSet;
-        }
     }
 
-    public static class Portfolio extends Base {
-
-        private static final long serialVersionUID = 1L;
+    @Data
+    public static class Portfolio implements Serializable {
 
         private BigDecimal totalPosition;
         private Date date;
@@ -153,122 +63,6 @@ public class BeanCompareTest {
         private Set<Double> rateSet;
         List<Position> positions = new ArrayList<>();
 
-        public Portfolio() {
-        }
-
-        public BigDecimal getTotalPosition() {
-            return totalPosition;
-        }
-
-        public void setTotalPosition(BigDecimal totalPosition) {
-            this.totalPosition = totalPosition;
-        }
-
-        public Date getDate() {
-            return date;
-        }
-
-        public void setDate(Date date) {
-            this.date = date;
-        }
-
-        public long getSize() {
-            return size;
-        }
-
-        public void setSize(long size) {
-            this.size = size;
-        }
-
-        public String getBook() {
-            return book;
-        }
-
-        public void setBook(String book) {
-            this.book = book;
-        }
-
-        public List<Position> getPositions() {
-            return positions;
-        }
-
-        public void addPosition(Position position) {
-            positions.add(position);
-        }
-
-        public void removePosition(Position position) {
-            positions.remove(position);
-        }
-
-        public void setPositions(List<Position> positions) {
-            this.positions = positions;
-        }
-
-        public Position getPosition() {
-            return position;
-        }
-
-        public void setPosition(Position position) {
-            this.position = position;
-        }
-
-        public PositionType getPositionType() {
-            return positionType;
-        }
-
-        public void setPositionType(PositionType positionType) {
-            this.positionType = positionType;
-        }
-
-        public long[] getStats() {
-            return stats;
-        }
-
-        public void setStats(long[] stats) {
-            this.stats = stats;
-        }
-
-        public String[] getNames() {
-            return names;
-        }
-
-        public void setNames(String[] names) {
-            this.names = names;
-        }
-
-        public Position[] getArrayPositions() {
-            return arrayPositions;
-        }
-
-        public void setArrayPositions(Position[] arrayPositions) {
-            this.arrayPositions = arrayPositions;
-        }
-
-        public Map<String, Double> getFxRates() {
-            return fxRates;
-        }
-
-        public void setFxRates(Map<String, Double> fxRates) {
-            this.fxRates = fxRates;
-        }
-
-        public List<String> getProducts() {
-            return products;
-        }
-
-        public void setProducts(List<String> products) {
-
-            this.products = products;
-        }
-
-        public Set<Double> getRateSet() {
-            return rateSet;
-        }
-
-
-        public void setRateSet(Set<Double> rateSet) {
-            this.rateSet = rateSet;
-        }
     }
 
     private static BeanCompare beanCompare;
