@@ -1,6 +1,5 @@
 package com.bblackbird;
 
-
 import com.bblackbird.FieldCompare.ContextFilter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -8,7 +7,8 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.junit.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -23,19 +23,20 @@ import static com.bblackbird.FieldCompare.allFieldContextFilter;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 public class BeanCompareTest {
 
-    private static Logger logger = LoggerFactory.getLogger(BeanCompareTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(BeanCompareTest.class);
 
     public enum PositionType {
-        BLACK, RED;
+        BLACK, RED
     }
 
     public static abstract class Base implements Serializable {
-        private static final long serialversionUID = 1L;
+
+        private static final long serialVersionUID = 1L;
 
         @Override
         public int hashCode() {
@@ -273,25 +274,25 @@ public class BeanCompareTest {
     private static BeanCompare beanCompare;
 
 
-    @BeforeClass
+    @BeforeAll
     public static void setUpBeforeClass() {
         beanCompare = new BeanCompare();
     }
 
-    @AfterClass
+    @AfterAll
     public static void teardownAfterClass() {
     }
 
-    @Before
+    @BeforeEach
     public void setup() {
     }
 
-    @After
+    @AfterEach
     public void teardown() {
         beanCompare.clearComparators();
     }
 
-    private static PodamFactory objFactory = new PodamFactoryImpl();
+    private static final PodamFactory objFactory = new PodamFactoryImpl();
 
     public static <T> T getObject(Class<T> klazz) {
         return objFactory.manufacturePojo(klazz);
@@ -304,7 +305,6 @@ public class BeanCompareTest {
     public static <T> T clone(Serializable value) {
         return (T) SerializationUtils.clone(value);
     }
-
 
     @Test
     public void testAll() {
