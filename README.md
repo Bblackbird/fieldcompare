@@ -46,6 +46,11 @@ Diff object contains:
 
 Please note that "Left" object is compared to "Right" object members. So in case one cares about properties in "Right" value not present in "Left", one should either switch their place and run the same diff() method again, or use fullDiff() methods.
 
+Utility is designed to be easily extendable/customizable either by providing alternative input functions for context and field filtering, or overriding base implementation in BeanCompare class.
+
+Field filtering can be used to filter out certain field types based on provided filter predicate.
+Context filter goes beyond that and allows for filtering based on current context that includes full field name, both values and field type. It could be very useful to exclude certain object values from comparison.
+
 This utility goes really hand in hand with some test data generator libraries, like the one used in unit test here:
 https://mtedone.github.io/podam/
 This is article that also describe usage of it:
