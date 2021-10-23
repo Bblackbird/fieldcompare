@@ -36,28 +36,32 @@ This snippet shows how it can be used to validate full data correctness in unit 
 Please see BeanCompareTest class for more examples.
 
 Diff object contains:
-1) full name to test value in following formats:
-  a) <property instance name>[.<sub property instance name>...] in case of simple properties
-  b) <property instance name>.<key name> in case of maps
-  c) <property instance name>.<index>.<property name> in case of collections, lists and arrays
-2) Data type
-3) "Left" value which is projected onto "Right" value for any differences
-4) "Right" value
+1. Full name to test value in following formats:
+  * `<property instance name>[.<sub property instance name>...]` in case of simple properties
+  * `<property instance name>.<key name>` in case of maps
+  * `<property instance name>.<index>.<property name>` in case of collections, lists and arrays
+2. Data type
+3. "Left" value which is projected onto "Right" value for any differences
+4. "Right" value
 
 Please note that "Left" object is compared to "Right" object members. So in case one cares about properties in "Right" value not present in "Left", one should either switch their place and run the same diff() method again, or use fullDiff() methods.
 
-This utility goes really hand in hand with some of the test data generator libraries, like the one used in unit test here:
+This utility goes really hand in hand with some test data generator libraries, like the one used in unit test here:
 https://mtedone.github.io/podam/
 This is article that also describe usage of it:
 https://medium.com/geekculture/java-unit-tests-make-easy-random-values-with-podam-2b1de8a56958
 
 Some other popular alternatives:
+
 https://www.baeldung.com/java-easy-random
+
 https://github.com/j-easy/easy-random
+
 https://github.com/DiUS/java-faker (https://www.baeldung.com/java-faker)
+
 https://github.com/Codearte/jfairy
 
-Some good alternatives:
+Some good object comparison libraries alternatives:
 
 Jav Object Diff
 
