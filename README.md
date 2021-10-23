@@ -1,7 +1,7 @@
 # fieldcompare
 Object comparison utility.
 
-It is primarily meant as an aid in unit testing to pinpoint differences in data and objecs used in non-trivial real-word applications.
+It is primarily meant as an aid in unit testing to pinpoint differences in data and objects used in non-trivial real-word applications.
 The goal was to address 90% of the most common scenarios, and make it possible for easy customization as needed.
 
 This snippet shows how it can be used to validate full data correctness in unit testing:
@@ -33,6 +33,8 @@ This snippet shows how it can be used to validate full data correctness in unit 
 
         assertThat(shouldBeEmpty, empty());
 
+Please see BeanCompareTest class for more examples.
+
 Diff object contains:
 1) full name to test value in following formats:
   a) <property instance name>[.<sub property instance name>...] in case of simple properties
@@ -42,9 +44,9 @@ Diff object contains:
 3) "Left" value which is projected onto "Right" value for any differences
 4) "Right" value
 
-Please note that "Left" value is compared to "Right" value properties, so in case one cares about properties in "Right" value not present in "Left", one should either swith their place and run the same diff() method again, or use fullDiff() methods.
+Please note that "Left" object is compared to "Right" object members. So in case one cares about properties in "Right" value not present in "Left", one should either switch their place and run the same diff() method again, or use fullDiff() methods.
 
-This utility goes really hand in hand with some of the java data generator libraries, like the one used in unit test here:
+This utility goes really hand in hand with some of the test data generator libraries, like the one used in unit test here:
 https://mtedone.github.io/podam/
 This is article that also describe usage of it:
 https://medium.com/geekculture/java-unit-tests-make-easy-random-values-with-podam-2b1de8a56958
