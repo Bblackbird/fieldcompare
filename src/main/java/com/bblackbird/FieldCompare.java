@@ -17,6 +17,8 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class FieldCompare {
 
@@ -333,7 +335,8 @@ public class FieldCompare {
         if (left == null || left == right || left.equals(right)) {
             return diffs;
         }
-        pf.addLast(f);
+        if(f != null)
+            pf.addLast(f);
         left.forEach((k, v) -> {
             prefix.addLast(k.toString());
             if(right.containsKey(k)) {
@@ -344,7 +347,8 @@ public class FieldCompare {
             }
             prefix.removeLast();
         });
-        pf.removeLast();
+        if(f != null)
+            pf.removeLast();
         return diffs;
     }
 
@@ -472,7 +476,7 @@ public class FieldCompare {
             return 0;
         }
 
-        if (left instanceof Comparable<?>) {
+        if (left instanceof Comparable<?>  && !hasComparator(left.getClass())) {
             return ((Comparable) left).compareTo(right);
         }
 
@@ -1457,8 +1461,8 @@ public class FieldCompare {
 
             if (prefix.isEmpty())
                 return f != null ? f.getName() : "";
-            String pfs = f != null ? f.getName() : "";
-            return pfs + "." + toString(prefix, ".");
+            String pfs = f != null ? f.getName() + "." : "";
+            return pfs + toString(prefix, ".");
         }
 
         if (prefix.isEmpty()) {
@@ -1478,10 +1482,37 @@ public class FieldCompare {
     }
 
     protected String toString(Collection<String> strings, String separator) {
+        if(strings.isEmpty()) {
+            return "";
+        }
+
+        if (strings.size() == 1) {
+            return strings.iterator().next();
+        }
         return strings.stream().collect(Collectors.joining(separator));
     }
 
+    protected String toString(Deque<String> strings, String separator) {
+
+        if(strings.isEmpty()) {
+            return "";
+        }
+
+        if (strings.size() == 1) {
+            return strings.iterator().next();
+        }
+
+        Stream<String> reverseStream = StreamSupport.stream(Spliterators.spliteratorUnknownSize(
+                strings.descendingIterator(), Spliterator.ORDERED), false);
+        return reverseStream.collect(Collectors.joining(separator));
+    }
+
     protected String getFullName(Deque<Field> pf, Deque<String> prefixes) {
+
+        if(pf.isEmpty()) {
+            return toString(prefixes, ".");
+        }
+
         Iterator<String> prefixesIter = prefixes.iterator();
         return pf.stream()
                 .map(f -> {

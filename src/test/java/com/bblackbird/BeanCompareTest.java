@@ -1016,6 +1016,26 @@ public class BeanCompareTest {
         assertThat(diffs, empty());
     }
 
+    @Test
+    public void testMapAlone() {
+
+        Portfolio left = getObject(Portfolio.class);
+
+        Portfolio right = clone(left);
+
+        String key = left.getFxRates().keySet().iterator().next();
+
+        double rate = left.getFxRates().get(key) + 1000.00;
+
+        right.getFxRates().put(key, rate);
+
+        left.getFxRates().put("junk",99.00);
+
+        List<Diff> diffs = beanCompare.diffs(left.getFxRates(), right.getFxRates(), f -> true);
+
+        assertThat(diffs, is(Arrays.asList(new Diff(key, Double.class, left.getFxRates().get(key), rate),
+                new Diff("junk", Double.class, 99.00, "MISSING"))));
+    }
 
     @Test
     public void testMap() {
